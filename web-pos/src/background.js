@@ -3,7 +3,14 @@
 import { app, protocol, BrowserWindow } from 'electron'
 import { createProtocol } from 'vue-cli-plugin-electron-builder/lib'
 import installExtension, { VUEJS_DEVTOOLS } from 'electron-devtools-installer'
+import log from 'electron-log'
+import {autoUpdater} from "electron-updater";
+
 const isDevelopment = process.env.NODE_ENV !== 'production'
+autoUpdater.logger = log;
+autoUpdater.logger.transports.file.level = 'info';
+log.info('App starting...');
+
 
 // Scheme must be registered before the app is ready
 protocol.registerSchemesAsPrivileged([
@@ -77,3 +84,45 @@ if (isDevelopment) {
     })
   }
 }
+
+autoUpdater.on('checking-for-update', () => {
+  sendStatusToWindow('Checking for update...');
+})
+autoUpdater.on('update-available', (info) => {
+  sendStatusToWindow('Update available.');
+})
+autoUpdater.on('update-not-available', (info) => {
+  sendStatusToWindow('Update not available.');
+})
+autoUpdater.on('error', (err) => {
+  sendStatusToWindow('Error in auto-updater. ' + err);
+})
+autoUpdater.on('download-progress', (progressObj) => {
+  let log_message = "Download speed: " + progressObj.bytesPerSecond;
+  log_message = log_message + ' - Downloaded ' + progressObj.percent + '%';
+  log_message = log_message + ' (' + progressObj.transferred + "/" + progressObj.total + ')';
+  sendStatusToWindow(log_message);
+})
+autoUpdater.on('update-downloaded', (info) => {
+  sendStatusToWindow('Update downloaded');
+
+  const option = {
+    type:'question',
+    button:['업데이트','취소'],
+    defaultId:0,
+    title:"electron-updater",
+    message:"업데이트가 있습니다."
+  }
+  
+  let btnIndex = dialog.showMessageBoxSync(updateWin, option);
+  if(btnIndex === 0){
+    autoUpdater.quitAndInstall();
+  }
+});
+
+app.on('ready', async ()=>{
+  createDefaultUpdateWindow();
+  autoUpdater.checkForUpdates();
+})
+
+
